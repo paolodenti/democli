@@ -1,5 +1,6 @@
 # Native Spring Boot CLI example
 
+CLI Native test project using Spring Boot and Picocli.
 
 ## Build
 
