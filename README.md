@@ -1,6 +1,6 @@
 # Native Spring Boot CLI example
 
-CLI Native test project using Spring Boot and Picocli.
+Template for a CLI Native test project using Spring Boot and Picocli.
 
 Apply a message digest to a file or stdin, using the provided algorithm
 (SHA-512 if not specified).
