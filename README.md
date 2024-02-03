@@ -7,6 +7,12 @@ Apply a message digest to a file or stdin, using the provided algorithm
 
 ## Build
 
+### Prerequisites
+
+* GraalVM JDK >= 21
+
+### Build
+
 ```shell
 make build
 ```
