@@ -53,6 +53,23 @@
 	</dependencies>
 
 	<build>
+
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.graalvm.buildtools</groupId>
+					<artifactId>native-maven-plugin</artifactId>
+					<configuration>
+						<buildArgs combine.children="append">
+							<buildArg>--strict-image-heap</buildArg>
+							<buildArg>-R:MaxHeapSize=128m</buildArg>
+							<buildArg>-march=native</buildArg>
+						</buildArgs>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+
 		<plugins>
 			<plugin>
 				<groupId>org.graalvm.buildtools</groupId>
