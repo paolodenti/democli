@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.github.paolodenti</groupId>
 	<artifactId>democli</artifactId>
-	<version>0.0.1</version>
+	<version>0.0.2</version>
 	<name>democli</name>
 	<description>Demo CLI</description>
 	<properties>
@@ -53,39 +53,48 @@
 	</dependencies>
 
 	<build>
-
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.graalvm.buildtools</groupId>
-					<artifactId>native-maven-plugin</artifactId>
-					<configuration>
-						<buildArgs combine.children="append">
-							<buildArg>--strict-image-heap</buildArg>
-							<buildArg>-R:MaxHeapSize=128m</buildArg>
-							<buildArg>-march=native</buildArg>
-						</buildArgs>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-
 		<plugins>
 			<plugin>
 				<groupId>org.graalvm.buildtools</groupId>
 				<artifactId>native-maven-plugin</artifactId>
+				<configuration>
+					<buildArgs>
+						<buildArg>--strict-image-heap</buildArg>
+						<buildArg>-R:MaxHeapSize=128m</buildArg>
+						<buildArg>-march=compatibility</buildArg>
+					</buildArgs>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
+					<image>
+						<buildpacks>
+							<buildpack>gcr.io/paketo-buildpacks/graalvm</buildpack>
+							<buildpack>gcr.io/paketo-buildpacks/java-native-image</buildpack>
+						</buildpacks>
+						<env>
+							<BP_BOOT_NATIVE_IMAGE>true</BP_BOOT_NATIVE_IMAGE>
+							<BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS>
+								--strict-image-heap
+								-R:MaxHeapSize=128m
+								-march=compatibility
+							</BP_BOOT_NATIVE_IMAGE_BUILD_ARGUMENTS>
+						</env>
+					</image>
 				</configuration>
+				<executions>
+					<execution>
+						<id>process-aot</id>
+						<goals>
+							<goal>process-aot</goal>
+						</goals>
+						<configuration>
+							<profiles>sentry</profiles>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -101,6 +110,7 @@
 					</annotationProcessorPaths>
 					<compilerArgs>
 						<arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
+						<arg>-proc:full</arg>
 					</compilerArgs>
 				</configuration>
 			</plugin>
