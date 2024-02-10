@@ -145,7 +145,7 @@ jobs:
           name: win-binary
           path: win
 
-      - name: Upload release assets
+      - name: Create release
         uses: actions/github-script@v7
         env:
           projectversion: ${{ needs.getProjectVersion.outputs.projectversion }}
@@ -155,7 +155,11 @@ jobs:
             github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: 'v${{ env.projectversion }}'
+              tag_name: 'v${{ env.projectversion }}',
+              name: 'v${{ env.projectversion }}',
+              body: 'Release v${{ env.projectversion }}',
+              draft: false,
+              prerelease: false
             });
 
       - name: Get the release id
