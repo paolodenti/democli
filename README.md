@@ -11,10 +11,10 @@ Apply a message digest to a file or stdin, using the provided algorithm
 
 * GraalVM JDK >= 21
 
-### Build
+### Build native executable
 
 ```shell
-make build
+make native
 ```
 
 ## Run

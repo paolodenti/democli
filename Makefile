@@ -45,7 +45,19 @@ test: clean style
 	@cd $(ROOT_DIR) && \
 ./mvnw --no-transfer-progress test
 
-.PHONY=build
-build: clean
+.PHONY=native
+native: clean
 	@cd $(ROOT_DIR) && \
 ./mvnw native:compile -Pnative
+
+.PHONY=image
+image: clean
+	@cd $(ROOT_DIR) && \
+VERSION="$$(./mvnw -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)" && \
+./mvnw spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/paolodenti/democli:$${VERSION}
+
+.PHONY=native-image
+native-image: clean
+	@cd $(ROOT_DIR) && \
+VERSION="$$(./mvnw -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)" && \
+./mvnw -Pnative spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/paolodenti/democli:$${VERSION}-native
