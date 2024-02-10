@@ -14,7 +14,7 @@ Apply a message digest to a file or stdin, using the provided algorithm
 ### Build native executable
 
 ```shell
-make native
+make build
 ```
 
 ## Run
