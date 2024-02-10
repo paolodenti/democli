@@ -1,0 +1,213 @@
+name: Build Docker, Docker Native Images, Native executables
+
+env:
+  EXECUTABLE_NAME: democli
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  getProjectVersion:
+    if: github.event.pull_request.merged == true
+    name: Extract the project version
+    runs-on: ubuntu-latest
+
+    outputs:
+      projectversion: ${{ steps.getversion.outputs.projectversion }}
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "corretto"
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Prepare tags
+        id: getversion
+        run: |
+          echo "projectversion=$(make version)" >> $GITHUB_OUTPUT
+
+  checkRelease:
+    name: Check if the release is available
+    needs: getProjectVersion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check release 1/2
+        uses: mukunku/tag-exists-action@v1.6.0
+        id: checkTag
+        with:
+          tag: v${{ needs.getProjectVersion.outputs.projectversion }}
+      - name: Check release 2/2
+        if: steps.checkTag.outputs.exists == 'true'
+        run: |
+          echo "Release v${{ needs.getProjectVersion.outputs.projectversion }} already exists"
+          exit 1
+
+  build-binaries:
+    name: Native binary build for ${{ matrix.ostag }}
+    needs: [checkRelease, getProjectVersion]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            ostag: linux
+          - os: macos-latest
+            ostag: mac
+          - os: windows-latest
+            ostag: win
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache local Maven repository
+        if: false
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build native binary (linux/mac)
+        if: runner.os != 'Windows'
+        run: |
+          ./mvnw --no-transfer-progress clean native:compile -Pnative
+
+      - name: Build native binary (win)
+        if: runner.os == 'Windows'
+        run: |
+          .\mvnw.cmd --no-transfer-progress clean native:compile -Pnative
+
+      - name: Upload linux binary
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binary
+          path: target/${{ env.EXECUTABLE_NAME }}
+
+      - name: Upload mac binary
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-binary
+          path: target/${{ env.EXECUTABLE_NAME }}
+
+      - name: Upload win binary
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-binary
+          path: target\${{ env.EXECUTABLE_NAME }}.exe
+
+  create-release:
+    name: Create release
+    needs: [checkRelease, getProjectVersion, build-binaries]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binary
+          path: linux
+      - name: Download mac binary
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-binary
+          path: mac
+      - name: Download win binary
+        uses: actions/download-artifact@v4
+        with:
+          name: win-binary
+          path: win
+
+      - name: Upload release assets
+        uses: actions/github-script@v7
+        env:
+          projectversion: ${{ needs.getProjectVersion.outputs.projectversion }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: 'v${{ env.projectversion }}'
+            });
+
+      - name: Get the release id
+        env:
+          projectversion: ${{ needs.getProjectVersion.outputs.projectversion }}
+        run: |
+          RELEASE_ID=$(curl -s -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/v${{ env.projectversion }} \
+            | jq -r '.id')
+          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
+
+      - name: Upload linux binary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs').promises;
+            await github.rest.repos.uploadReleaseAsset({
+              name: '${{ env.EXECUTABLE_NAME }}-linux',
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ env.RELEASE_ID }},
+              data: await fs.readFile('./linux/${{ env.EXECUTABLE_NAME }}')
+            });
+
+      - name: Upload mac binary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs').promises;
+            await github.rest.repos.uploadReleaseAsset({
+              name: '${{ env.EXECUTABLE_NAME }}-darwin',
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ env.RELEASE_ID }},
+              data: await fs.readFile('./mac/${{ env.EXECUTABLE_NAME }}')
+            });
+
+      - name: Upload win binary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs').promises;
+            await github.rest.repos.uploadReleaseAsset({
+              name: '${{ env.EXECUTABLE_NAME }}.exe',
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ env.RELEASE_ID }},
+              data: await fs.readFile('./win/${{ env.EXECUTABLE_NAME }}.exe')
+            });
