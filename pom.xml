@@ -15,7 +15,7 @@
 	<description>Demo CLI</description>
 	<properties>
 		<picocli.version>4.7.5</picocli.version>
-		<maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
+		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 
 		<maven.checkstyle-plugin.version>3.3.1</maven.checkstyle-plugin.version>
 		<checkstyle.version>10.13.0</checkstyle.version>
